@@ -1,0 +1,1150 @@
+/* MEXICO RUNS - SCRIPT DE ENTREGA DE BASE DE DATOS
+   Ejecutar completo en una ventana Nueva consulta de SSMS (F5).
+   Requiere permiso CREATE DATABASE. Usa MexicoRuns2 y no elimina bases ni registros existentes.
+   Incluye tablas, relaciones, procedimientos de negocio y CRUD por cada tabla.
+   No incluye vistas ni disparadores porque no forman parte de esta entrega.
+*/
+IF DB_ID(N'MexicoRuns2') IS NULL
+BEGIN
+    CREATE DATABASE MexicoRuns2;
+END;
+GO
+
+USE MexicoRuns2;
+GO
+
+-- SIN FK
+IF OBJECT_ID(N'dbo.CategoriasVehiculo',N'U') IS NULL
+BEGIN
+CREATE TABLE CategoriasVehiculo (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    nombre NVARCHAR(50),
+    descripcion NVARCHAR(250),
+    tarifa_diaria DECIMAL(10,2)
+);
+END;
+GO
+
+IF OBJECT_ID(N'dbo.EstadosPago',N'U') IS NULL
+BEGIN
+CREATE TABLE EstadosPago (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    nombre NVARCHAR(50),       -- Pendiente, Pagado, Rechazado, Reembolsado
+    descripcion NVARCHAR(250)
+);
+END;
+GO
+
+IF OBJECT_ID(N'dbo.EstadosReservacion',N'U') IS NULL
+BEGIN
+CREATE TABLE EstadosReservacion (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    nombre NVARCHAR(50),       -- Pendiente, Confirmada, En curso, Finalizada, Cancelada
+    descripcion NVARCHAR(250)
+);
+END;
+GO
+
+IF OBJECT_ID(N'dbo.EstadosVehiculo',N'U') IS NULL
+BEGIN
+CREATE TABLE EstadosVehiculo (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    nombre NVARCHAR(50),       -- Disponible, Rentado, En mantenimiento, Fuera de servicio
+    descripcion NVARCHAR(250)
+);
+END;
+GO
+
+IF OBJECT_ID(N'dbo.MetodosPago',N'U') IS NULL
+BEGIN
+CREATE TABLE MetodosPago (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    nombre NVARCHAR(50),       -- Tarjeta de crédito, Tarjeta de débito, Efectivo, Transferencia
+    descripcion NVARCHAR(250)
+);
+END;
+GO
+
+IF OBJECT_ID(N'dbo.Roles',N'U') IS NULL
+BEGIN
+CREATE TABLE Roles (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    nombre_rol NVARCHAR(50),
+    descripcion NVARCHAR(250),
+    permisos NVARCHAR(500)
+);
+END;
+GO
+
+IF OBJECT_ID(N'dbo.Sucursales',N'U') IS NULL
+BEGIN
+CREATE TABLE Sucursales (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    nombre NVARCHAR(100),
+    calle NVARCHAR(100),
+    avenida NVARCHAR(100),
+    codigo_postal NVARCHAR(10),
+    numero_ext NVARCHAR(10),
+    ciudad NVARCHAR(100),
+    colonia_barrio NVARCHAR(100),
+    estado NVARCHAR(100),
+    telefono NVARCHAR(10)
+);
+END;
+GO
+
+-- Sucursales de ejemplo para las tres ubicaciones del proyecto.
+IF NOT EXISTS(SELECT 1 FROM dbo.Sucursales WHERE ciudad COLLATE Latin1_General_100_CI_AI LIKE N'%Tuxtla%')
+  INSERT dbo.Sucursales(nombre,ciudad,estado) VALUES(N'MexicoRuns Tuxtla Centro',N'Tuxtla Gutiérrez',N'Chiapas');
+IF NOT EXISTS(SELECT 1 FROM dbo.Sucursales WHERE ciudad COLLATE Latin1_General_100_CI_AI LIKE N'%Ciudad de Mexico%')
+  INSERT dbo.Sucursales(nombre,ciudad,estado) VALUES(N'MexicoRuns Aeropuerto CDMX',N'Ciudad de México',N'Ciudad de México');
+IF NOT EXISTS(SELECT 1 FROM dbo.Sucursales WHERE ciudad COLLATE Latin1_General_100_CI_AI LIKE N'%Cancun%')
+  INSERT dbo.Sucursales(nombre,ciudad,estado) VALUES(N'MexicoRuns Cancún Centro',N'Cancún',N'Quintana Roo');
+
+-- CON FK
+IF OBJECT_ID(N'dbo.CuentasCliente',N'U') IS NULL
+BEGIN
+CREATE TABLE CuentasCliente (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    nombre NVARCHAR(50),
+    apellido_pat NVARCHAR(50),
+    apellido_mat NVARCHAR(50),
+    telefono NVARCHAR(10),
+    correo NVARCHAR(100) UNIQUE,
+    contrasena NVARCHAR(255),
+    debe_cambiar_contrasena BIT NOT NULL CONSTRAINT df_cuenta_cambiar_clave DEFAULT (0),
+    numero_licencia NVARCHAR(30),
+    fecha_registro DATETIME2 DEFAULT SYSDATETIME(),
+    id_rol INT,
+    CONSTRAINT fk_cuenta_rol FOREIGN KEY (id_rol) REFERENCES Roles(id)
+);
+END;
+GO
+
+IF OBJECT_ID(N'dbo.Vehiculos',N'U') IS NULL
+BEGIN
+CREATE TABLE Vehiculos (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    placa NVARCHAR(20) UNIQUE,
+    marca NVARCHAR(50),
+    modelo NVARCHAR(50),
+    anio INT,
+    color NVARCHAR(30),
+    num_serie NVARCHAR(30) UNIQUE,
+    capacidad_pasajeros INT,
+    kilometraje DECIMAL(10,2),  -- en kilómetros
+    id_categoria INT,
+    id_estado_vehiculo INT,
+    id_sucursal INT,
+    CONSTRAINT fk_vehiculo_categoria FOREIGN KEY (id_categoria) REFERENCES CategoriasVehiculo(id),
+    CONSTRAINT fk_vehiculo_estado FOREIGN KEY (id_estado_vehiculo) REFERENCES EstadosVehiculo(id),
+    CONSTRAINT fk_vehiculo_sucursal FOREIGN KEY (id_sucursal) REFERENCES Sucursales(id)
+);
+END;
+GO
+
+IF OBJECT_ID(N'dbo.Mantenimientos',N'U') IS NULL
+BEGIN
+CREATE TABLE Mantenimientos (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    id_vehiculo INT,
+    fecha DATETIME2,
+    tipo NVARCHAR(50),          -- Preventivo, Correctivo
+    descripcion NVARCHAR(MAX),
+    costo DECIMAL(10,2),
+    kilometraje DECIMAL(10,2),
+    CONSTRAINT fk_mantenimiento_vehiculo FOREIGN KEY (id_vehiculo) REFERENCES Vehiculos(id)
+);
+END;
+GO
+
+-- MAS DE 2 FK
+IF OBJECT_ID(N'dbo.Reservaciones',N'U') IS NULL
+BEGIN
+CREATE TABLE Reservaciones (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    id_cuenta_cliente INT,
+    id_vehiculo INT,
+    id_sucursal_recogida INT,
+    id_sucursal_entrega INT,
+    fecha_inicio DATETIME2,
+    fecha_fin DATETIME2,
+    costo_total DECIMAL(10,2),
+    id_estado_reservacion INT,
+    CONSTRAINT fk_reservacion_cuenta FOREIGN KEY (id_cuenta_cliente) REFERENCES CuentasCliente(id),
+    CONSTRAINT fk_reservacion_vehiculo FOREIGN KEY (id_vehiculo) REFERENCES Vehiculos(id),
+    CONSTRAINT fk_reservacion_sucursal_recogida FOREIGN KEY (id_sucursal_recogida) REFERENCES Sucursales(id),
+    CONSTRAINT fk_reservacion_sucursal_entrega FOREIGN KEY (id_sucursal_entrega) REFERENCES Sucursales(id),
+    CONSTRAINT fk_reservacion_estado FOREIGN KEY (id_estado_reservacion) REFERENCES EstadosReservacion(id)
+);
+END;
+GO
+
+IF OBJECT_ID(N'dbo.Pagos',N'U') IS NULL
+BEGIN
+CREATE TABLE Pagos (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    id_reservacion INT,
+    id_metodo_pago INT,
+    id_estado_pago INT,
+    monto DECIMAL(10,2),
+    fecha_pago DATETIME2,
+    referencia NVARCHAR(100),
+    CONSTRAINT fk_pago_reservacion FOREIGN KEY (id_reservacion) REFERENCES Reservaciones(id),
+    CONSTRAINT fk_pago_metodo FOREIGN KEY (id_metodo_pago) REFERENCES MetodosPago(id),
+    CONSTRAINT fk_pago_estado FOREIGN KEY (id_estado_pago) REFERENCES EstadosPago(id)
+);
+END;
+GO
+
+IF OBJECT_ID(N'dbo.Opiniones',N'U') IS NULL
+BEGIN
+CREATE TABLE Opiniones (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    id_reservacion INT NOT NULL UNIQUE,
+    calificacion TINYINT CHECK (calificacion BETWEEN 1 AND 5),
+    comentario NVARCHAR(MAX),
+    fecha DATETIME2 DEFAULT SYSDATETIME(),
+    CONSTRAINT fk_opinion_reservacion FOREIGN KEY (id_reservacion) REFERENCES Reservaciones(id)
+);
+END;
+GO
+GO
+
+/* Procedimientos almacenados de negocio */
+USE MexicoRuns2;
+GO
+
+/* =====================================================================
+   DATOS BASE DE CATÁLOGOS
+   Los procedimientos buscan estos estados y roles por nombre.
+   Solo se insertan si la tabla está vacía.
+   ===================================================================== */
+IF NOT EXISTS (SELECT 1 FROM EstadosVehiculo)
+    INSERT INTO EstadosVehiculo (nombre, descripcion) VALUES
+    ('Disponible', 'Listo para rentarse'),
+    ('Rentado', 'Asignado a una reservación activa'),
+    ('En mantenimiento', 'En servicio o reparación'),
+    ('Fuera de servicio', 'No disponible');
+
+IF NOT EXISTS (SELECT 1 FROM EstadosReservacion)
+    INSERT INTO EstadosReservacion (nombre, descripcion) VALUES
+    ('Pendiente', 'Creada, en espera de pago completo'),
+    ('Confirmada', 'Pago completo recibido'),
+    ('Finalizada', 'Vehículo devuelto'),
+    ('Cancelada', 'Cancelada por el cliente o la sucursal');
+
+IF NOT EXISTS (SELECT 1 FROM EstadosPago)
+    INSERT INTO EstadosPago (nombre, descripcion) VALUES
+    ('Pendiente', 'En espera de confirmación'),
+    ('Pagado', 'Pago recibido'),
+    ('Rechazado', 'Pago no aceptado'),
+    ('Reembolsado', 'Pago devuelto al cliente');
+
+IF NOT EXISTS (SELECT 1 FROM MetodosPago)
+    INSERT INTO MetodosPago (nombre, descripcion) VALUES
+    ('Tarjeta de crédito', NULL),
+    ('Tarjeta de débito', NULL),
+    ('Efectivo', NULL),
+    ('Transferencia', NULL);
+
+IF NOT EXISTS (SELECT 1 FROM Roles)
+    INSERT INTO Roles (nombre_rol, descripcion, permisos) VALUES
+    ('Cliente', 'Usuario que renta vehículos', 'reservar,pagar,opinar'),
+    ('Administrador', 'Gestiona el sistema', 'todos');
+GO
+
+/* =====================================================================
+   1. REGISTRAR CUENTA DE CLIENTE
+   ===================================================================== */
+CREATE OR ALTER PROCEDURE sp_RegistrarCuentaCliente
+    @nombre NVARCHAR(50),
+    @apellido_pat NVARCHAR(50),
+    @apellido_mat NVARCHAR(50) = NULL,
+    @telefono NVARCHAR(10),
+    @correo NVARCHAR(100),
+    @contrasena NVARCHAR(255),
+    @numero_licencia NVARCHAR(30),
+    @id_rol INT = NULL,
+    @id_cuenta INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS (SELECT 1 FROM CuentasCliente WHERE correo = @correo)
+        THROW 50001, 'Ya existe una cuenta con ese correo.', 1;
+
+    -- Si no se indica rol, se asigna "Cliente"
+    IF @id_rol IS NULL
+        SELECT @id_rol = id FROM Roles WHERE nombre_rol = 'Cliente';
+
+    IF @id_rol IS NULL OR NOT EXISTS (SELECT 1 FROM Roles WHERE id = @id_rol)
+        THROW 50002, 'El rol indicado no existe.', 1;
+
+    INSERT INTO CuentasCliente
+        (nombre, apellido_pat, apellido_mat, telefono, correo, contrasena, numero_licencia, id_rol, debe_cambiar_contrasena)
+    VALUES
+        (@nombre, @apellido_pat, @apellido_mat, @telefono, @correo, @contrasena, @numero_licencia, @id_rol, 0);
+
+    SET @id_cuenta = SCOPE_IDENTITY();
+END;
+GO
+
+/* =====================================================================
+   2. CREAR RESERVACIÓN
+   Valida disponibilidad, calcula el costo (tarifa de la categoría x días)
+   y marca el vehículo como "Rentado".
+   ===================================================================== */
+CREATE OR ALTER PROCEDURE sp_CrearReservacion
+    @id_cuenta_cliente INT,
+    @id_vehiculo INT,
+    @id_sucursal_recogida INT,
+    @id_sucursal_entrega INT,
+    @fecha_inicio DATETIME2,
+    @fecha_fin DATETIME2,
+    @id_reservacion INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @id_disponible INT, @id_rentado INT, @id_pendiente INT;
+    DECLARE @tarifa DECIMAL(10,2), @dias INT, @costo DECIMAL(10,2);
+
+    BEGIN TRY
+        IF @fecha_fin <= @fecha_inicio
+            THROW 50010, 'La fecha de fin debe ser posterior a la fecha de inicio.', 1;
+        IF NOT EXISTS (SELECT 1 FROM CuentasCliente WHERE id = @id_cuenta_cliente)
+            THROW 50011, 'La cuenta de cliente no existe.', 1;
+        IF NOT EXISTS (SELECT 1 FROM Sucursales WHERE id = @id_sucursal_recogida)
+           OR NOT EXISTS (SELECT 1 FROM Sucursales WHERE id = @id_sucursal_entrega)
+            THROW 50012, 'La sucursal de recogida o de entrega no existe.', 1;
+
+        BEGIN TRANSACTION;
+
+        SELECT @id_disponible = id FROM EstadosVehiculo WHERE nombre = 'Disponible';
+        SELECT @id_rentado = id FROM EstadosVehiculo WHERE nombre = 'Rentado';
+        SELECT @id_pendiente = id FROM EstadosReservacion WHERE nombre = 'Pendiente';
+
+        -- Bloquea el vehículo para evitar doble reservación
+        SELECT @tarifa = c.tarifa_diaria
+        FROM Vehiculos v WITH (UPDLOCK, ROWLOCK)
+        JOIN CategoriasVehiculo c ON c.id = v.id_categoria
+        JOIN EstadosVehiculo ev ON ev.id = v.id_estado_vehiculo
+        WHERE v.id = @id_vehiculo AND ev.nombre IN ('Disponible', 'Rentado');
+
+        IF @tarifa IS NULL
+            THROW 50013, 'El vehículo no existe, no está disponible o no tiene categoría con tarifa.', 1;
+
+        IF EXISTS (
+            SELECT 1 FROM Reservaciones r WITH (UPDLOCK, HOLDLOCK)
+            JOIN EstadosReservacion er ON er.id = r.id_estado_reservacion
+            WHERE r.id_vehiculo = @id_vehiculo
+              AND er.nombre IN ('Pendiente', 'Confirmada', 'En curso')
+              AND r.fecha_inicio < @fecha_fin AND r.fecha_fin > @fecha_inicio
+        )
+            THROW 50016, 'El vehículo ya tiene una reservación en esas fechas. Elige otras fechas o un vehículo distinto.', 1;
+
+        -- Días de renta (se redondea hacia arriba, mínimo 1)
+        SET @dias = CEILING(DATEDIFF(MINUTE, @fecha_inicio, @fecha_fin) / 1440.0);
+        IF @dias < 1 SET @dias = 1;
+        SET @costo = @dias * @tarifa;
+
+        INSERT INTO Reservaciones
+            (id_cuenta_cliente, id_vehiculo, id_sucursal_recogida, id_sucursal_entrega,
+             fecha_inicio, fecha_fin, costo_total, id_estado_reservacion)
+        VALUES
+            (@id_cuenta_cliente, @id_vehiculo, @id_sucursal_recogida, @id_sucursal_entrega,
+             @fecha_inicio, @fecha_fin, @costo, @id_pendiente);
+
+        SET @id_reservacion = SCOPE_IDENTITY();
+
+        UPDATE Vehiculos SET id_estado_vehiculo = @id_rentado WHERE id = @id_vehiculo;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
+
+/* =====================================================================
+   3. REGISTRAR PAGO
+   Si lo pagado cubre el costo total, la reservación pasa a "Confirmada".
+   ===================================================================== */
+CREATE OR ALTER PROCEDURE sp_RegistrarPago
+    @id_reservacion INT,
+    @id_metodo_pago INT,
+    @monto DECIMAL(10,2),
+    @referencia NVARCHAR(100) = NULL,
+    @id_pago INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @id_pagado INT, @id_pendiente INT, @id_confirmada INT;
+    DECLARE @costo DECIMAL(10,2), @estado_actual NVARCHAR(50), @total_pagado DECIMAL(10,2);
+
+    BEGIN TRY
+        IF @monto <= 0
+            THROW 50020, 'El monto debe ser mayor a cero.', 1;
+        IF NOT EXISTS (SELECT 1 FROM MetodosPago WHERE id = @id_metodo_pago)
+            THROW 50021, 'El método de pago no existe.', 1;
+
+        SELECT @costo = r.costo_total, @estado_actual = er.nombre
+        FROM Reservaciones r
+        JOIN EstadosReservacion er ON er.id = r.id_estado_reservacion
+        WHERE r.id = @id_reservacion;
+
+        IF @costo IS NULL
+            THROW 50022, 'La reservación no existe.', 1;
+        IF @estado_actual NOT IN ('Pendiente', 'Confirmada')
+            THROW 50023, 'Solo se pueden registrar pagos en reservaciones Pendientes o Confirmadas.', 1;
+
+        BEGIN TRANSACTION;
+
+        SELECT @id_pagado = id FROM EstadosPago WHERE nombre = 'Pagado';
+        SELECT @id_confirmada = id FROM EstadosReservacion WHERE nombre = 'Confirmada';
+
+        INSERT INTO Pagos (id_reservacion, id_metodo_pago, id_estado_pago, monto, fecha_pago, referencia)
+        VALUES (@id_reservacion, @id_metodo_pago, @id_pagado, @monto, SYSDATETIME(), @referencia);
+
+        SET @id_pago = SCOPE_IDENTITY();
+
+        SELECT @total_pagado = SUM(monto)
+        FROM Pagos
+        WHERE id_reservacion = @id_reservacion AND id_estado_pago = @id_pagado;
+
+        IF @total_pagado >= @costo AND @estado_actual = 'Pendiente'
+            UPDATE Reservaciones SET id_estado_reservacion = @id_confirmada WHERE id = @id_reservacion;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
+
+/* =====================================================================
+   4. CANCELAR RESERVACIÓN
+   Libera el vehículo y marca como "Reembolsado" los pagos ya recibidos.
+   ===================================================================== */
+CREATE OR ALTER PROCEDURE sp_CancelarReservacion
+    @id_reservacion INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @id_cancelada INT, @id_disponible INT, @id_pagado INT, @id_reembolsado INT;
+    DECLARE @id_vehiculo INT, @estado_actual NVARCHAR(50);
+
+    BEGIN TRY
+        SELECT @id_vehiculo = r.id_vehiculo, @estado_actual = er.nombre
+        FROM Reservaciones r
+        JOIN EstadosReservacion er ON er.id = r.id_estado_reservacion
+        WHERE r.id = @id_reservacion;
+
+        IF @id_vehiculo IS NULL
+            THROW 50030, 'La reservación no existe.', 1;
+        IF @estado_actual IN ('Finalizada', 'Cancelada')
+            THROW 50031, 'La reservación ya está Finalizada o Cancelada.', 1;
+
+        BEGIN TRANSACTION;
+
+        SELECT @id_cancelada = id FROM EstadosReservacion WHERE nombre = 'Cancelada';
+        SELECT @id_disponible = id FROM EstadosVehiculo WHERE nombre = 'Disponible';
+        SELECT @id_pagado = id FROM EstadosPago WHERE nombre = 'Pagado';
+        SELECT @id_reembolsado = id FROM EstadosPago WHERE nombre = 'Reembolsado';
+
+        UPDATE Reservaciones SET id_estado_reservacion = @id_cancelada WHERE id = @id_reservacion;
+        UPDATE Vehiculos SET id_estado_vehiculo = @id_disponible WHERE id = @id_vehiculo;
+        UPDATE Pagos SET id_estado_pago = @id_reembolsado
+        WHERE id_reservacion = @id_reservacion AND id_estado_pago = @id_pagado;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
+
+/* =====================================================================
+   5. FINALIZAR RESERVACIÓN (devolución del vehículo)
+   Pasa la reservación a "Finalizada", deja el vehículo "Disponible" en la
+   sucursal de entrega y actualiza su kilometraje si se indica.
+   ===================================================================== */
+CREATE OR ALTER PROCEDURE sp_FinalizarReservacion
+    @id_reservacion INT,
+    @kilometraje_final DECIMAL(10,2) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @id_finalizada INT, @id_disponible INT;
+    DECLARE @id_vehiculo INT, @id_sucursal_entrega INT, @estado_actual NVARCHAR(50);
+
+    BEGIN TRY
+        SELECT @id_vehiculo = r.id_vehiculo, @id_sucursal_entrega = r.id_sucursal_entrega,
+               @estado_actual = er.nombre
+        FROM Reservaciones r
+        JOIN EstadosReservacion er ON er.id = r.id_estado_reservacion
+        WHERE r.id = @id_reservacion;
+
+        IF @id_vehiculo IS NULL
+            THROW 50040, 'La reservación no existe.', 1;
+        IF @estado_actual <> 'Confirmada'
+            THROW 50041, 'Solo se puede finalizar una reservación Confirmada (con pago completo).', 1;
+
+        BEGIN TRANSACTION;
+
+        SELECT @id_finalizada = id FROM EstadosReservacion WHERE nombre = 'Finalizada';
+        SELECT @id_disponible = id FROM EstadosVehiculo WHERE nombre = 'Disponible';
+
+        UPDATE Reservaciones SET id_estado_reservacion = @id_finalizada WHERE id = @id_reservacion;
+
+        UPDATE Vehiculos
+        SET id_estado_vehiculo = @id_disponible,
+            id_sucursal = @id_sucursal_entrega,
+            kilometraje = CASE WHEN @kilometraje_final > kilometraje THEN @kilometraje_final ELSE kilometraje END
+        WHERE id = @id_vehiculo;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
+
+/* =====================================================================
+   6. REGISTRAR MANTENIMIENTO
+   Guarda el mantenimiento y deja el vehículo "En mantenimiento".
+   ===================================================================== */
+CREATE OR ALTER PROCEDURE sp_RegistrarMantenimiento
+    @id_vehiculo INT,
+    @tipo NVARCHAR(50),            -- Preventivo, Correctivo
+    @descripcion NVARCHAR(MAX),
+    @costo DECIMAL(10,2),
+    @kilometraje DECIMAL(10,2) = NULL,
+    @fecha DATETIME2 = NULL,
+    @id_mantenimiento INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @id_en_mantenimiento INT, @estado_actual NVARCHAR(50);
+
+    BEGIN TRY
+        SELECT @estado_actual = ev.nombre
+        FROM Vehiculos v
+        JOIN EstadosVehiculo ev ON ev.id = v.id_estado_vehiculo
+        WHERE v.id = @id_vehiculo;
+
+        IF @estado_actual IS NULL
+            THROW 50050, 'El vehículo no existe.', 1;
+        IF @estado_actual = 'Rentado'
+            THROW 50051, 'No se puede registrar mantenimiento a un vehículo Rentado.', 1;
+        IF @costo < 0
+            THROW 50052, 'El costo no puede ser negativo.', 1;
+
+        BEGIN TRANSACTION;
+
+        SELECT @id_en_mantenimiento = id FROM EstadosVehiculo WHERE nombre = 'En mantenimiento';
+
+        INSERT INTO Mantenimientos (id_vehiculo, fecha, tipo, descripcion, costo, kilometraje)
+        VALUES (@id_vehiculo, ISNULL(@fecha, SYSDATETIME()), @tipo, @descripcion, @costo, @kilometraje);
+
+        SET @id_mantenimiento = SCOPE_IDENTITY();
+
+        UPDATE Vehiculos
+        SET id_estado_vehiculo = @id_en_mantenimiento,
+            kilometraje = CASE WHEN @kilometraje > kilometraje THEN @kilometraje ELSE kilometraje END
+        WHERE id = @id_vehiculo;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
+
+/* Complemento: terminar el mantenimiento y devolver el vehículo a "Disponible" */
+CREATE OR ALTER PROCEDURE sp_FinalizarMantenimiento
+    @id_vehiculo INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @id_disponible INT, @id_en_mantenimiento INT;
+
+    SELECT @id_disponible = id FROM EstadosVehiculo WHERE nombre = 'Disponible';
+    SELECT @id_en_mantenimiento = id FROM EstadosVehiculo WHERE nombre = 'En mantenimiento';
+
+    UPDATE Vehiculos
+    SET id_estado_vehiculo = @id_disponible
+    WHERE id = @id_vehiculo AND id_estado_vehiculo = @id_en_mantenimiento;
+
+    IF @@ROWCOUNT = 0
+        THROW 50060, 'El vehículo no existe o no está En mantenimiento.', 1;
+END;
+GO
+
+/* =====================================================================
+   7. REGISTRAR OPINIÓN
+   Solo si la reservación es del cliente, está Finalizada y no tiene opinión.
+   ===================================================================== */
+CREATE OR ALTER PROCEDURE sp_RegistrarOpinion
+    @id_cuenta_cliente INT,
+    @id_reservacion INT,
+    @calificacion TINYINT,
+    @comentario NVARCHAR(MAX) = NULL,
+    @id_opinion INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @id_cuenta_reserva INT, @estado_actual NVARCHAR(50);
+    IF @calificacion NOT BETWEEN 1 AND 5 THROW 50070, 'La calificación debe estar entre 1 y 5.', 1;
+    SELECT @id_cuenta_reserva=r.id_cuenta_cliente,@estado_actual=er.nombre
+    FROM Reservaciones r JOIN EstadosReservacion er ON er.id=r.id_estado_reservacion
+    WHERE r.id=@id_reservacion;
+    IF @id_cuenta_reserva IS NULL THROW 50071, 'La reservación no existe.', 1;
+    IF @id_cuenta_reserva<>@id_cuenta_cliente THROW 50072, 'La reservación no pertenece a este cliente.', 1;
+    IF @estado_actual<>'Finalizada' THROW 50073, 'Solo se puede opinar sobre reservaciones Finalizadas.', 1;
+    IF EXISTS(SELECT 1 FROM Opiniones WHERE id_reservacion=@id_reservacion) THROW 50074, 'Esta reservación ya tiene una opinión registrada.', 1;
+    INSERT Opiniones(id_reservacion,calificacion,comentario) VALUES(@id_reservacion,@calificacion,@comentario);
+    SET @id_opinion=SCOPE_IDENTITY();
+END;
+GO
+/* =====================================================================
+   8. CONSULTAS
+   ===================================================================== */
+
+-- Vehículos disponibles (de una sucursal o de todas si @id_sucursal es NULL)
+CREATE OR ALTER PROCEDURE sp_VehiculosDisponiblesPorSucursal
+    @id_sucursal INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT s.nombre AS sucursal, v.id, v.placa, v.marca, v.modelo, v.anio, v.color,
+           v.capacidad_pasajeros, v.kilometraje,
+           c.nombre AS categoria, c.tarifa_diaria
+    FROM Vehiculos v
+    JOIN EstadosVehiculo ev ON ev.id = v.id_estado_vehiculo
+    JOIN Sucursales s ON s.id = v.id_sucursal
+    LEFT JOIN CategoriasVehiculo c ON c.id = v.id_categoria
+    WHERE ev.nombre = 'Disponible'
+      AND (@id_sucursal IS NULL OR v.id_sucursal = @id_sucursal)
+    ORDER BY s.nombre, c.tarifa_diaria;
+END;
+GO
+
+-- Historial de reservaciones de un cliente
+CREATE OR ALTER PROCEDURE sp_HistorialReservacionesCliente
+    @id_cuenta_cliente INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT r.id AS id_reservacion,
+           v.marca, v.modelo, v.placa,
+           sr.nombre AS sucursal_recogida,
+           se.nombre AS sucursal_entrega,
+           r.fecha_inicio, r.fecha_fin, r.costo_total,
+           er.nombre AS estado,
+           ISNULL(SUM(CASE WHEN ep.nombre = 'Pagado' THEN p.monto END), 0) AS total_pagado
+    FROM Reservaciones r
+    JOIN Vehiculos v ON v.id = r.id_vehiculo
+    JOIN Sucursales sr ON sr.id = r.id_sucursal_recogida
+    JOIN Sucursales se ON se.id = r.id_sucursal_entrega
+    JOIN EstadosReservacion er ON er.id = r.id_estado_reservacion
+    LEFT JOIN Pagos p ON p.id_reservacion = r.id
+    LEFT JOIN EstadosPago ep ON ep.id = p.id_estado_pago
+    WHERE r.id_cuenta_cliente = @id_cuenta_cliente
+    GROUP BY r.id, v.marca, v.modelo, v.placa, sr.nombre, se.nombre,
+             r.fecha_inicio, r.fecha_fin, r.costo_total, er.nombre
+    ORDER BY r.fecha_inicio DESC;
+END;
+GO
+
+-- Ingresos por periodo (pagos con estado "Pagado"), por método de pago y total
+CREATE OR ALTER PROCEDURE sp_IngresosPorPeriodo
+    @fecha_inicio DATETIME2,
+    @fecha_fin DATETIME2
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT mp.nombre AS metodo_pago,
+           COUNT(*) AS num_pagos,
+           SUM(p.monto) AS total_ingresos
+    FROM Pagos p
+    JOIN EstadosPago ep ON ep.id = p.id_estado_pago
+    JOIN MetodosPago mp ON mp.id = p.id_metodo_pago
+    WHERE ep.nombre = 'Pagado'
+      AND p.fecha_pago >= @fecha_inicio AND p.fecha_pago < @fecha_fin
+    GROUP BY mp.nombre
+    ORDER BY total_ingresos DESC;
+
+    SELECT ISNULL(SUM(p.monto), 0) AS total_general
+    FROM Pagos p
+    JOIN EstadosPago ep ON ep.id = p.id_estado_pago
+    WHERE ep.nombre = 'Pagado'
+      AND p.fecha_pago >= @fecha_inicio AND p.fecha_pago < @fecha_fin;
+END;
+GO
+
+/* Migraciones, normalización y CRUD completo por tabla */
+USE MexicoRuns2;
+GO
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_PADDING ON;
+SET ANSI_WARNINGS ON;
+SET ARITHABORT ON;
+SET CONCAT_NULL_YIELDS_NULL ON;
+SET NUMERIC_ROUNDABORT OFF;
+GO
+/* Sucursales iniciales; se omiten si ya hay una sede en esa ciudad. */
+IF NOT EXISTS (SELECT 1 FROM dbo.Sucursales WHERE ciudad COLLATE Latin1_General_100_CI_AI LIKE N'%Tuxtla%')
+  INSERT dbo.Sucursales(nombre,ciudad,estado) VALUES(N'MexicoRuns Tuxtla Centro',N'Tuxtla Gutiérrez',N'Chiapas');
+IF NOT EXISTS (SELECT 1 FROM dbo.Sucursales WHERE ciudad COLLATE Latin1_General_100_CI_AI LIKE N'%Ciudad de Mexico%')
+  INSERT dbo.Sucursales(nombre,ciudad,estado) VALUES(N'MexicoRuns Aeropuerto CDMX',N'Ciudad de México',N'Ciudad de México');
+IF NOT EXISTS (SELECT 1 FROM dbo.Sucursales WHERE ciudad COLLATE Latin1_General_100_CI_AI LIKE N'%Cancun%')
+  INSERT dbo.Sucursales(nombre,ciudad,estado) VALUES(N'MexicoRuns Cancún Centro',N'Cancún',N'Quintana Roo');
+GO
+/* Migración segura e idempotente: agrega control de cuentas y bitácoras. */
+IF COL_LENGTH('dbo.CuentasCliente','bloqueada') IS NULL
+BEGIN
+  ALTER TABLE dbo.CuentasCliente ADD bloqueada BIT NOT NULL
+    CONSTRAINT DF_CuentasCliente_bloqueada DEFAULT (0) WITH VALUES;
+END;
+GO
+
+IF COL_LENGTH('dbo.Vehiculos','retirado') IS NULL
+BEGIN
+  ALTER TABLE dbo.Vehiculos ADD retirado BIT NOT NULL
+    CONSTRAINT DF_Vehiculos_retirado DEFAULT (0) WITH VALUES;
+END;
+GO
+
+IF OBJECT_ID('dbo.BitacoraErrores','U') IS NULL
+BEGIN
+  CREATE TABLE dbo.BitacoraErrores(
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    fecha DATETIME2 NOT NULL CONSTRAINT DF_BitacoraErrores_fecha DEFAULT SYSDATETIME(),
+    usuario NVARCHAR(100) NULL,
+    procedimiento NVARCHAR(128) NULL,
+    numero_error INT NULL,
+    severidad INT NULL,
+    estado INT NULL,
+    linea INT NULL,
+    mensaje NVARCHAR(MAX) NOT NULL
+  );
+END;
+GO
+
+IF OBJECT_ID('dbo.BitacoraAuditoria','U') IS NULL
+BEGIN
+  CREATE TABLE dbo.BitacoraAuditoria(
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    fecha DATETIME2 NOT NULL CONSTRAINT DF_BitacoraAuditoria_fecha DEFAULT SYSDATETIME(),
+    id_usuario INT NULL,
+    rol NVARCHAR(50) NULL,
+    accion NVARCHAR(50) NOT NULL,
+    tabla NVARCHAR(128) NOT NULL,
+    id_registro NVARCHAR(100) NULL,
+    detalle NVARCHAR(MAX) NULL
+  );
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_RegistrarError
+  @usuario NVARCHAR(100)=NULL,@procedimiento NVARCHAR(128)=NULL,
+  @numero_error INT=NULL,@severidad INT=NULL,@estado INT=NULL,
+  @linea INT=NULL,@mensaje NVARCHAR(MAX)
+AS
+BEGIN
+  SET NOCOUNT ON;
+  INSERT dbo.BitacoraErrores(usuario,procedimiento,numero_error,severidad,estado,linea,mensaje)
+  VALUES(@usuario,@procedimiento,@numero_error,@severidad,@estado,@linea,@mensaje);
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_RegistrarCuentaCliente
+  @nombre NVARCHAR(50),@apellido_pat NVARCHAR(50),@apellido_mat NVARCHAR(50)=NULL,
+  @telefono NVARCHAR(10),@correo NVARCHAR(100),@contrasena NVARCHAR(255),
+  @numero_licencia NVARCHAR(30),@id_rol INT=NULL,@id_cuenta INT OUTPUT
+AS
+BEGIN
+  SET NOCOUNT ON;
+  BEGIN TRY
+    IF EXISTS(SELECT 1 FROM dbo.CuentasCliente WHERE LOWER(correo)=LOWER(@correo))
+      THROW 50001,'Ya existe una cuenta con ese correo.',1;
+    IF @id_rol IS NULL SELECT @id_rol=id FROM dbo.Roles WHERE nombre_rol='Cliente';
+    IF @id_rol IS NULL OR NOT EXISTS(SELECT 1 FROM dbo.Roles WHERE id=@id_rol)
+      THROW 50002,'El rol indicado no existe.',1;
+    INSERT dbo.CuentasCliente(nombre,apellido_pat,apellido_mat,telefono,correo,contrasena,numero_licencia,id_rol,debe_cambiar_contrasena,bloqueada)
+    VALUES(@nombre,@apellido_pat,@apellido_mat,@telefono,@correo,@contrasena,@numero_licencia,@id_rol,0,0);
+    SET @id_cuenta=SCOPE_IDENTITY();
+  END TRY
+  BEGIN CATCH
+    INSERT dbo.BitacoraErrores(procedimiento,numero_error,severidad,estado,linea,mensaje)
+    VALUES(ERROR_PROCEDURE(),ERROR_NUMBER(),ERROR_SEVERITY(),ERROR_STATE(),ERROR_LINE(),ERROR_MESSAGE());
+    THROW;
+  END CATCH
+END;
+GO
+CREATE OR ALTER PROCEDURE dbo.sp_BloquearCuenta
+  @id_cuenta INT,@bloqueada BIT
+AS
+BEGIN
+  SET NOCOUNT ON;
+  BEGIN TRY
+    UPDATE dbo.CuentasCliente SET bloqueada=@bloqueada WHERE id=@id_cuenta;
+    IF @@ROWCOUNT=0 THROW 50101,'No existe la cuenta indicada.',1;
+  END TRY
+  BEGIN CATCH
+    INSERT dbo.BitacoraErrores(procedimiento,numero_error,severidad,estado,linea,mensaje)
+    VALUES(ERROR_PROCEDURE(),ERROR_NUMBER(),ERROR_SEVERITY(),ERROR_STATE(),ERROR_LINE(),ERROR_MESSAGE());
+    THROW;
+  END CATCH
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_ActualizarDatosCliente
+  @id_cuenta INT,@nombre NVARCHAR(50),@apellido_pat NVARCHAR(50),
+  @apellido_mat NVARCHAR(50)=NULL,@telefono NVARCHAR(10),@correo NVARCHAR(100),
+  @numero_licencia NVARCHAR(30)
+AS
+BEGIN
+  SET NOCOUNT ON;
+  BEGIN TRY
+    UPDATE dbo.CuentasCliente
+    SET nombre=@nombre,apellido_pat=@apellido_pat,apellido_mat=@apellido_mat,
+        telefono=@telefono,correo=@correo,numero_licencia=@numero_licencia
+    WHERE id=@id_cuenta AND bloqueada=0;
+    IF @@ROWCOUNT=0 THROW 50102,'La cuenta no existe o está bloqueada.',1;
+  END TRY
+  BEGIN CATCH
+    INSERT dbo.BitacoraErrores(procedimiento,numero_error,severidad,estado,linea,mensaje)
+    VALUES(ERROR_PROCEDURE(),ERROR_NUMBER(),ERROR_SEVERITY(),ERROR_STATE(),ERROR_LINE(),ERROR_MESSAGE());
+    THROW;
+  END CATCH
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_CancelarReservacion
+  @id_reservacion INT,@forzar BIT=0
+AS
+BEGIN
+  SET NOCOUNT ON;
+  DECLARE @id_cancelada INT,@id_disponible INT,@id_pagado INT,@id_reembolsado INT,
+          @id_vehiculo INT,@estado_actual NVARCHAR(50),@fecha_inicio DATETIME2;
+  BEGIN TRY
+    SELECT @id_vehiculo=r.id_vehiculo,@estado_actual=er.nombre,@fecha_inicio=r.fecha_inicio
+    FROM dbo.Reservaciones r JOIN dbo.EstadosReservacion er ON er.id=r.id_estado_reservacion
+    WHERE r.id=@id_reservacion;
+    IF @id_vehiculo IS NULL THROW 50030,'La reservación no existe.',1;
+    IF @estado_actual IN ('Finalizada','Cancelada') THROW 50031,'La reservación ya está Finalizada o Cancelada.',1;
+    IF @forzar=0 AND DATEDIFF(DAY,CONVERT(date,SYSDATETIME()),CONVERT(date,@fecha_inicio))<6
+      THROW 50032,'La cancelación debe solicitarse al menos 6 días antes de la recogida.',1;
+    BEGIN TRANSACTION;
+    SELECT @id_cancelada=id FROM dbo.EstadosReservacion WHERE nombre='Cancelada';
+    SELECT @id_disponible=id FROM dbo.EstadosVehiculo WHERE nombre='Disponible';
+    SELECT @id_pagado=id FROM dbo.EstadosPago WHERE nombre='Pagado';
+    SELECT @id_reembolsado=id FROM dbo.EstadosPago WHERE nombre='Reembolsado';
+    UPDATE dbo.Reservaciones SET id_estado_reservacion=@id_cancelada WHERE id=@id_reservacion;
+    UPDATE dbo.Vehiculos SET id_estado_vehiculo=@id_disponible WHERE id=@id_vehiculo;
+    UPDATE dbo.Pagos SET id_estado_pago=@id_reembolsado
+      WHERE id_reservacion=@id_reservacion AND id_estado_pago=@id_pagado;
+    COMMIT TRANSACTION;
+  END TRY
+  BEGIN CATCH
+    IF XACT_STATE()<>0 ROLLBACK TRANSACTION;
+    INSERT dbo.BitacoraErrores(procedimiento,numero_error,severidad,estado,linea,mensaje)
+    VALUES(ERROR_PROCEDURE(),ERROR_NUMBER(),ERROR_SEVERITY(),ERROR_STATE(),ERROR_LINE(),ERROR_MESSAGE());
+    THROW;
+  END CATCH
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_FinalizarMantenimiento
+  @id_vehiculo INT
+AS
+BEGIN
+  SET NOCOUNT ON;
+  DECLARE @id_disponible INT,@id_mantenimiento INT;
+  BEGIN TRY
+    SELECT @id_disponible=id FROM dbo.EstadosVehiculo WHERE nombre='Disponible';
+    SELECT @id_mantenimiento=id FROM dbo.EstadosVehiculo WHERE nombre='En mantenimiento';
+    UPDATE dbo.Vehiculos SET id_estado_vehiculo=@id_disponible
+      WHERE id=@id_vehiculo AND id_estado_vehiculo=@id_mantenimiento;
+    IF @@ROWCOUNT=0 THROW 50060,'El vehículo no existe o no está En mantenimiento.',1;
+  END TRY
+  BEGIN CATCH
+    INSERT dbo.BitacoraErrores(procedimiento,numero_error,severidad,estado,linea,mensaje)
+    VALUES(ERROR_PROCEDURE(),ERROR_NUMBER(),ERROR_SEVERITY(),ERROR_STATE(),ERROR_LINE(),ERROR_MESSAGE());
+    THROW;
+  END CATCH
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_RegistrarOpinion
+  @id_cuenta_cliente INT,@id_reservacion INT,@calificacion TINYINT,
+  @comentario NVARCHAR(MAX)=NULL,@id_opinion INT OUTPUT
+AS
+BEGIN
+  SET NOCOUNT ON;
+  DECLARE @cuenta INT,@estado NVARCHAR(50);
+  IF @calificacion NOT BETWEEN 1 AND 5 THROW 50070,'La calificación debe estar entre 1 y 5.',1;
+  SELECT @cuenta=r.id_cuenta_cliente,@estado=e.nombre FROM dbo.Reservaciones r JOIN dbo.EstadosReservacion e ON e.id=r.id_estado_reservacion WHERE r.id=@id_reservacion;
+  IF @cuenta IS NULL THROW 50071,'La reservación no existe.',1;
+  IF @cuenta<>@id_cuenta_cliente THROW 50072,'La reservación no pertenece a este cliente.',1;
+  IF @estado<>N'Finalizada' THROW 50073,'Solo se puede opinar sobre reservaciones finalizadas.',1;
+  IF EXISTS(SELECT 1 FROM dbo.Opiniones WHERE id_reservacion=@id_reservacion) THROW 50074,'Esta reservación ya tiene una opinión registrada.',1;
+  INSERT dbo.Opiniones(id_reservacion,calificacion,comentario) VALUES(@id_reservacion,@calificacion,@comentario);
+  SET @id_opinion=CONVERT(INT,SCOPE_IDENTITY());
+END;
+GO
+/* Módulos administrativos adicionales. Datos externos se marcan como revisión manual. */
+IF OBJECT_ID('dbo.UbicacionesGPS','U') IS NULL
+BEGIN
+  CREATE TABLE dbo.UbicacionesGPS(
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    id_vehiculo INT NOT NULL REFERENCES dbo.Vehiculos(id),
+    latitud DECIMAL(9,6) NOT NULL,
+    longitud DECIMAL(9,6) NOT NULL,
+    fecha DATETIME2 NOT NULL CONSTRAINT DF_UbicacionesGPS_fecha DEFAULT SYSDATETIME(),
+    fuente NVARCHAR(30) NOT NULL CONSTRAINT DF_UbicacionesGPS_fuente DEFAULT N'Manual/demo',
+    registrado_por INT NULL REFERENCES dbo.CuentasCliente(id),
+    CONSTRAINT CK_UbicacionesGPS_latitud CHECK(latitud BETWEEN -90 AND 90),
+    CONSTRAINT CK_UbicacionesGPS_longitud CHECK(longitud BETWEEN -180 AND 180)
+  );
+END;
+GO
+IF OBJECT_ID('dbo.EvaluacionesCliente','U') IS NULL
+BEGIN
+  CREATE TABLE dbo.EvaluacionesCliente(
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    id_cliente INT NOT NULL REFERENCES dbo.CuentasCliente(id),
+    id_administrador INT NOT NULL REFERENCES dbo.CuentasCliente(id),
+    id_reservacion INT NULL REFERENCES dbo.Reservaciones(id),
+    calificacion TINYINT NOT NULL,
+    categoria NVARCHAR(40) NOT NULL,
+    comentario NVARCHAR(1000) NOT NULL,
+    fecha DATETIME2 NOT NULL CONSTRAINT DF_EvaluacionesCliente_fecha DEFAULT SYSDATETIME(),
+    CONSTRAINT CK_EvaluacionesCliente_calificacion CHECK(calificacion BETWEEN 1 AND 5)
+  );
+END;
+GO
+IF OBJECT_ID('dbo.PropuestasPropietario','U') IS NULL
+BEGIN
+  CREATE TABLE dbo.PropuestasPropietario(
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    nombre NVARCHAR(100) NOT NULL,
+    correo NVARCHAR(150) NOT NULL,
+    telefono NVARCHAR(20) NOT NULL,
+    marca NVARCHAR(60) NOT NULL,
+    modelo NVARCHAR(80) NOT NULL,
+    anio SMALLINT NOT NULL,
+    placa NVARCHAR(20) NOT NULL,
+    tarifa_sugerida DECIMAL(10,2) NOT NULL,
+    estado NVARCHAR(20) NOT NULL CONSTRAINT DF_PropuestasPropietario_estado DEFAULT N'Pendiente',
+    porcentaje_propietario DECIMAL(5,2) NOT NULL CONSTRAINT DF_PropuestasPropietario_porcentaje DEFAULT 70,
+    nota_admin NVARCHAR(1000) NULL,
+    creado DATETIME2 NOT NULL CONSTRAINT DF_PropuestasPropietario_creado DEFAULT SYSDATETIME(),
+    CONSTRAINT CK_PropuestasPropietario_estado CHECK(estado IN(N'Pendiente',N'En revisión',N'Aceptada',N'Rechazada')),
+    CONSTRAINT CK_PropuestasPropietario_porcentaje CHECK(porcentaje_propietario BETWEEN 0 AND 100),
+    CONSTRAINT CK_PropuestasPropietario_tarifa CHECK(tarifa_sugerida >= 0)
+  );
+END;
+GO
+IF OBJECT_ID('dbo.VerificacionesDocumentales','U') IS NULL
+BEGIN
+  CREATE TABLE dbo.VerificacionesDocumentales(
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    id_cliente INT NULL REFERENCES dbo.CuentasCliente(id),
+    id_vehiculo INT NULL REFERENCES dbo.Vehiculos(id),
+    tipo NVARCHAR(20) NOT NULL,
+    estado NVARCHAR(20) NOT NULL CONSTRAINT DF_VerificacionesDocumentales_estado DEFAULT N'Pendiente',
+    nota NVARCHAR(1000) NULL,
+    revisado_por INT NULL REFERENCES dbo.CuentasCliente(id),
+    revisado_en DATETIME2 NULL,
+    creado DATETIME2 NOT NULL CONSTRAINT DF_VerificacionesDocumentales_creado DEFAULT SYSDATETIME(),
+    CONSTRAINT CK_VerificacionesDocumentales_tipo CHECK(tipo IN(N'Licencia',N'Placas')),
+    CONSTRAINT CK_VerificacionesDocumentales_estado CHECK(estado IN(N'Pendiente',N'Revisado manualmente',N'Requiere corrección')),
+    CONSTRAINT CK_VerificacionesDocumentales_objeto CHECK(id_cliente IS NOT NULL OR id_vehiculo IS NOT NULL)
+  );
+END;
+GO
+IF OBJECT_ID('dbo.SolicitudesFactura','U') IS NULL
+BEGIN
+  CREATE TABLE dbo.SolicitudesFactura(
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    id_reservacion INT NOT NULL REFERENCES dbo.Reservaciones(id),
+    id_cliente INT NOT NULL REFERENCES dbo.CuentasCliente(id),
+    rfc NVARCHAR(13) NOT NULL,
+    razon_social NVARCHAR(160) NOT NULL,
+    codigo_postal NVARCHAR(5) NOT NULL,
+    regimen_fiscal NVARCHAR(10) NOT NULL,
+    uso_cfdi NVARCHAR(10) NOT NULL,
+    correo NVARCHAR(150) NOT NULL,
+    estado NVARCHAR(30) NOT NULL CONSTRAINT DF_SolicitudesFactura_estado DEFAULT N'Pendiente de timbrado',
+    creado DATETIME2 NOT NULL CONSTRAINT DF_SolicitudesFactura_creado DEFAULT SYSDATETIME()
+  );
+END;
+GO
+CREATE OR ALTER PROCEDURE dbo.sp_RegistrarUbicacionGPS
+  @id_vehiculo INT,@latitud DECIMAL(9,6),@longitud DECIMAL(9,6),@registrado_por INT
+AS
+BEGIN
+  SET NOCOUNT ON;
+  IF NOT EXISTS(SELECT 1 FROM dbo.Vehiculos WHERE id=@id_vehiculo AND ISNULL(retirado,0)=0)
+    THROW 50201,'El vehículo no existe o fue retirado.',1;
+  IF @latitud NOT BETWEEN -90 AND 90 OR @longitud NOT BETWEEN -180 AND 180
+    THROW 50202,'Las coordenadas están fuera de rango.',1;
+  INSERT dbo.UbicacionesGPS(id_vehiculo,latitud,longitud,registrado_por)
+  VALUES(@id_vehiculo,@latitud,@longitud,@registrado_por);
+END;
+GO
+
+IF COL_LENGTH('dbo.CuentasCliente','correo_verificado') IS NULL
+BEGIN
+  ALTER TABLE dbo.CuentasCliente ADD correo_verificado BIT NOT NULL
+    CONSTRAINT DF_CuentasCliente_correo_verificado DEFAULT(0) WITH VALUES;
+END;
+GO
+IF OBJECT_ID('dbo.VerificacionCorreo','U') IS NULL
+BEGIN
+  CREATE TABLE dbo.VerificacionCorreo(
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    id_cliente INT NOT NULL REFERENCES dbo.CuentasCliente(id) ON DELETE CASCADE,
+    token_hash VARBINARY(32) NOT NULL,
+    expira DATETIME2 NOT NULL,
+    creado DATETIME2 NOT NULL CONSTRAINT DF_VerificacionCorreo_creado DEFAULT SYSDATETIME()
+  );
+  CREATE INDEX IX_VerificacionCorreo_cliente ON dbo.VerificacionCorreo(id_cliente);
+END;
+GO
+
+/* Normaliza Opiniones: cliente y vehículo se consultan desde Reservaciones. */
+IF COL_LENGTH('dbo.Opiniones','id_cuenta_cliente') IS NOT NULL
+BEGIN
+  EXEC(N'UPDATE o SET id_cuenta_cliente=r.id_cuenta_cliente,id_vehiculo=r.id_vehiculo FROM dbo.Opiniones o JOIN dbo.Reservaciones r ON r.id=o.id_reservacion;');
+  DECLARE @dropOpinionFK NVARCHAR(MAX)=N'';
+  SELECT @dropOpinionFK=@dropOpinionFK+N'ALTER TABLE dbo.Opiniones DROP CONSTRAINT '+QUOTENAME(fk.name)+N';'
+  FROM sys.foreign_keys fk
+  JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id=fk.object_id
+  JOIN sys.columns col ON col.object_id=fkc.parent_object_id AND col.column_id=fkc.parent_column_id
+  WHERE fk.parent_object_id=OBJECT_ID(N'dbo.Opiniones') AND col.name IN(N'id_cuenta_cliente',N'id_vehiculo');
+  IF @dropOpinionFK<>N'' EXEC sys.sp_executesql @dropOpinionFK;
+  EXEC(N'ALTER TABLE dbo.Opiniones DROP COLUMN id_cuenta_cliente,id_vehiculo;');
+END;
+GO
+CREATE OR ALTER PROCEDURE dbo.sp_RegistrarOpinion
+  @id_cuenta_cliente INT,@id_reservacion INT,@calificacion TINYINT,
+  @comentario NVARCHAR(MAX)=NULL,@id_opinion INT OUTPUT
+AS
+BEGIN
+  SET NOCOUNT ON;
+  DECLARE @cuenta INT,@estado NVARCHAR(50);
+  IF @calificacion NOT BETWEEN 1 AND 5 THROW 50070,'La calificación debe estar entre 1 y 5.',1;
+  SELECT @cuenta=r.id_cuenta_cliente,@estado=e.nombre FROM dbo.Reservaciones r JOIN dbo.EstadosReservacion e ON e.id=r.id_estado_reservacion WHERE r.id=@id_reservacion;
+  IF @cuenta IS NULL THROW 50071,'La reservación no existe.',1;
+  IF @cuenta<>@id_cuenta_cliente THROW 50072,'La reservación no pertenece a este cliente.',1;
+  IF @estado<>N'Finalizada' THROW 50073,'Solo se puede opinar sobre reservaciones finalizadas.',1;
+  IF EXISTS(SELECT 1 FROM dbo.Opiniones WHERE id_reservacion=@id_reservacion) THROW 50074,'Esta reservación ya tiene una opinión registrada.',1;
+  INSERT dbo.Opiniones(id_reservacion,calificacion,comentario) VALUES(@id_reservacion,@calificacion,@comentario);
+  SET @id_opinion=CONVERT(INT,SCOPE_IDENTITY());
+END;
+GO
+IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.Opiniones') AND name=N'UX_Opiniones_reservacion')
+   AND NOT EXISTS(SELECT id_reservacion FROM dbo.Opiniones WHERE id_reservacion IS NOT NULL GROUP BY id_reservacion HAVING COUNT(*)>1)
+  CREATE UNIQUE INDEX UX_Opiniones_reservacion ON dbo.Opiniones(id_reservacion) WHERE id_reservacion IS NOT NULL;
+GO
+/* CRUD académico por entidad: CREATE, READ, UPDATE y DELETE.
+   Los nombres y tipos se validan contra el esquema; las FK siguen protegiendo los datos. */
+CREATE OR ALTER PROCEDURE dbo.usp_CRUD_Tabla
+  @tabla SYSNAME,
+  @accion VARCHAR(10),
+  @id BIGINT = NULL,
+  @datos NVARCHAR(MAX) = NULL
+AS
+BEGIN
+  SET NOCOUNT ON;
+  IF @tabla NOT IN (N'CategoriasVehiculo',N'EstadosPago',N'EstadosReservacion',N'EstadosVehiculo',N'MetodosPago',N'Roles',N'Sucursales',N'CuentasCliente',N'Vehiculos',N'Mantenimientos',N'Reservaciones',N'Pagos',N'Opiniones',N'BitacoraErrores',N'BitacoraAuditoria',N'UbicacionesGPS',N'EvaluacionesCliente',N'PropuestasPropietario',N'VerificacionesDocumentales',N'SolicitudesFactura',N'VerificacionCorreo')
+    THROW 50301, 'Tabla fuera de la lista CRUD permitida.', 1;
+  IF OBJECT_ID(N'dbo.'+@tabla,N'U') IS NULL
+    THROW 50302, 'La tabla indicada no existe en dbo.', 1;
+  IF @accion NOT IN ('CREATE','READ','UPDATE','DELETE')
+    THROW 50303, 'Acción no válida. Usa CREATE, READ, UPDATE o DELETE.', 1;
+
+  DECLARE @obj INT=OBJECT_ID(N'dbo.'+@tabla,N'U'), @sql NVARCHAR(MAX), @cols NVARCHAR(MAX), @vals NVARCHAR(MAX), @sets NVARCHAR(MAX), @read NVARCHAR(MAX);
+  SELECT @read=STRING_AGG(CONVERT(NVARCHAR(MAX),QUOTENAME(name)),N',')
+  FROM sys.columns WHERE object_id=@obj AND name NOT IN (N'contrasena',N'token_hash');
+
+  IF @accion='READ'
+  BEGIN
+    SET @sql=N'SELECT '+@read+N' FROM dbo.'+QUOTENAME(@tabla)+CASE WHEN @id IS NULL THEN N' ORDER BY id;' ELSE N' WHERE id=@id;' END;
+    EXEC sys.sp_executesql @sql,N'@id BIGINT',@id=@id;
+    RETURN;
+  END;
+  IF @accion='DELETE'
+  BEGIN
+    IF @id IS NULL THROW 50304, 'Para DELETE debes indicar @id.', 1;
+    SET @sql=N'DELETE dbo.'+QUOTENAME(@tabla)+N' WHERE id=@id; IF @@ROWCOUNT=0 THROW 50305, ''No existe el registro indicado.'', 1;';
+    EXEC sys.sp_executesql @sql,N'@id BIGINT',@id=@id;
+    RETURN;
+  END;
+  IF ISJSON(@datos)<>1 THROW 50306, 'Para CREATE/UPDATE envía @datos como objeto JSON válido.', 1;
+
+  SELECT
+    @cols=STRING_AGG(CONVERT(NVARCHAR(MAX),QUOTENAME(c.name)),N','),
+    @vals=STRING_AGG(CONVERT(NVARCHAR(MAX),N'TRY_CONVERT('+
+      CASE WHEN t.name IN(N'nvarchar',N'nchar') THEN t.name+N'('+CASE WHEN c.max_length=-1 THEN N'max' ELSE CONVERT(NVARCHAR(10),c.max_length/2) END+N')'
+           WHEN t.name IN(N'varchar',N'char',N'varbinary',N'binary') THEN t.name+N'('+CASE WHEN c.max_length=-1 THEN N'max' ELSE CONVERT(NVARCHAR(10),c.max_length) END+N')'
+           WHEN t.name IN(N'decimal',N'numeric') THEN t.name+N'('+CONVERT(NVARCHAR(10),c.precision)+N','+CONVERT(NVARCHAR(10),c.scale)+N')'
+           ELSE t.name END+N',(SELECT TOP(1) [value] FROM OPENJSON(@datos) WHERE [key]=N'''+REPLACE(c.name,N'''',N'''''')+N'''))'),N','),
+    @sets=STRING_AGG(CONVERT(NVARCHAR(MAX),QUOTENAME(c.name)+N'=TRY_CONVERT('+
+      CASE WHEN t.name IN(N'nvarchar',N'nchar') THEN t.name+N'('+CASE WHEN c.max_length=-1 THEN N'max' ELSE CONVERT(NVARCHAR(10),c.max_length/2) END+N')'
+           WHEN t.name IN(N'varchar',N'char',N'varbinary',N'binary') THEN t.name+N'('+CASE WHEN c.max_length=-1 THEN N'max' ELSE CONVERT(NVARCHAR(10),c.max_length) END+N')'
+           WHEN t.name IN(N'decimal',N'numeric') THEN t.name+N'('+CONVERT(NVARCHAR(10),c.precision)+N','+CONVERT(NVARCHAR(10),c.scale)+N')'
+           ELSE t.name END+N',(SELECT TOP(1) [value] FROM OPENJSON(@datos) WHERE [key]=N'''+REPLACE(c.name,N'''',N'''''')+N'''))'),N',')
+  FROM sys.columns c JOIN sys.types t ON t.user_type_id=c.user_type_id
+  WHERE c.object_id=@obj AND c.is_identity=0 AND c.is_computed=0
+    AND EXISTS(SELECT 1 FROM OPENJSON(@datos) j WHERE j.[key] COLLATE DATABASE_DEFAULT=c.name COLLATE DATABASE_DEFAULT);
+
+  IF @accion='CREATE'
+  BEGIN
+    IF @cols IS NULL THROW 50307, 'No hay campos editables en el JSON.', 1;
+    SET @sql=N'INSERT dbo.'+QUOTENAME(@tabla)+N'('+@cols+N') OUTPUT inserted.id AS id SELECT '+@vals+N';';
+  END
+  ELSE
+  BEGIN
+    IF @id IS NULL THROW 50308, 'Para UPDATE debes indicar @id.', 1;
+    IF @sets IS NULL THROW 50309, 'No hay campos actualizables en el JSON.', 1;
+    SET @sql=N'UPDATE dbo.'+QUOTENAME(@tabla)+N' SET '+@sets+N' WHERE id=@id; IF @@ROWCOUNT=0 THROW 50305, ''No existe el registro indicado.'', 1;';
+  END;
+  EXEC sys.sp_executesql @sql,N'@datos NVARCHAR(MAX),@id BIGINT',@datos=@datos,@id=@id;
+END;
+GO
+
+/* Un procedimiento CRUD con nombre propio por cada tabla de la aplicación. */
+DECLARE @tablas TABLE(nombre SYSNAME PRIMARY KEY);
+INSERT @tablas(nombre) VALUES
+(N'CategoriasVehiculo'),(N'EstadosPago'),(N'EstadosReservacion'),(N'EstadosVehiculo'),(N'MetodosPago'),(N'Roles'),(N'Sucursales'),(N'CuentasCliente'),(N'Vehiculos'),(N'Mantenimientos'),(N'Reservaciones'),(N'Pagos'),(N'Opiniones'),(N'BitacoraErrores'),(N'BitacoraAuditoria'),(N'UbicacionesGPS'),(N'EvaluacionesCliente'),(N'PropuestasPropietario'),(N'VerificacionesDocumentales'),(N'SolicitudesFactura'),(N'VerificacionCorreo');
+DECLARE @tabla SYSNAME,@wrapper NVARCHAR(MAX);
+WHILE EXISTS(SELECT 1 FROM @tablas)
+BEGIN
+  SELECT TOP(1) @tabla=nombre FROM @tablas ORDER BY nombre;
+  IF OBJECT_ID(N'dbo.'+@tabla,N'U') IS NOT NULL
+  BEGIN
+    SET @wrapper=N'CREATE OR ALTER PROCEDURE dbo.'+QUOTENAME(N'usp_CRUD_'+@tabla)+N' @accion VARCHAR(10),@id BIGINT=NULL,@datos NVARCHAR(MAX)=NULL AS BEGIN SET NOCOUNT ON; EXEC dbo.usp_CRUD_Tabla @tabla=N'''+REPLACE(@tabla,N'''',N'''''')+N''',@accion=@accion,@id=@id,@datos=@datos; END;';
+    EXEC sys.sp_executesql @wrapper;
+  END;
+  DELETE @tablas WHERE nombre=@tabla;
+END;
+GO

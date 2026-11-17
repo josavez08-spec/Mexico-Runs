@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crear cuenta - Mexico Runs</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <nav class="navbar">
+      <a href="index.html" class="brand"><span class="brand-badge">MR</span> Mexico Runs</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Inicio</a></li>
+        <li><a href="catalago.html">Catálogo</a></li>
+        <li><a href="reservaciones.html">Reservaciones</a></li>
+        <li><a href="nosotros.html">Nosotros</a></li>
+        <li><a href="contacto.html">Contacto</a></li>
+        <li hidden><a href="basededatos.html">Base de datos</a></li>
+      </ul>
+      <div class="auth-buttons">
+        <a href="login.html" class="btn-link">Iniciar sesión</a>
+        <a href="registro.html" class="btn-primary">Crear cuenta</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <div class="card-form">
+      <h1 style="font-size: 1.6rem; color: var(--primary-color); margin-bottom: 5px;">Crear cuenta</h1>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">Necesitamos tus datos y tu licencia de conducir para poder rentarte un vehículo.</p>
+
+      <form id="registroForm">
+        <div class="form-group">
+          <label for="nombre">Nombre</label>
+          <input id="nombre" name="nombre" type="text" maxlength="50" autocomplete="given-name" required>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="form-group">
+            <label for="apellido_paterno">Apellido paterno</label>
+            <input id="apellido_paterno" name="apellido_paterno" type="text" maxlength="50" autocomplete="family-name" required>
+          </div>
+          <div class="form-group">
+            <label for="apellido_materno">Apellido materno (opcional)</label>
+            <input id="apellido_materno" name="apellido_materno" type="text" maxlength="50">
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="form-group">
+            <label for="telefono">Teléfono (10 dígitos)</label>
+            <input id="telefono" name="telefono" type="tel" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" autocomplete="tel" required>
+          </div>
+          <div class="form-group">
+            <label for="licencia">Número de licencia</label>
+            <input id="licencia" name="licencia" type="text" maxlength="30" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="correo">Correo electrónico</label>
+          <input id="correo" name="correo" type="email" maxlength="100" autocomplete="email" required>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="form-group">
+            <label for="password">Contraseña <small>(8 caracteres, letra, número y carácter especial)</small></label>
+            <input id="password" name="password" type="password" minlength="8" pattern="(?=.*[A-Za-zÁÉÍÓÚáéíóúÑñ])(?=.*\d)(?=.*[^A-Za-z0-9ÁÉÍÓÚáéíóúÑñ]).{8,}" title="Incluye una letra, un número y un carácter especial." autocomplete="new-password" required>
+          </div>
+          <div class="form-group">
+            <label for="confirmar_password">Repite la contraseña</label>
+            <input id="confirmar_password" type="password" minlength="8" pattern="(?=.*[A-Za-zÁÉÍÓÚáéíóúÑñ])(?=.*\d)(?=.*[^A-Za-z0-9ÁÉÍÓÚáéíóúÑñ]).{8,}" autocomplete="new-password" required>
+          </div>
+        </div>
+        <p id="registroMensaje" role="status" aria-live="polite"></p>
+        <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px; padding: 10px;">Crear mi cuenta</button>
+      </form>
+    </div>
+  </main>
+
+  <script>
+    const formRegistro = document.getElementById('registroForm');
+    const mensajeRegistro = document.getElementById('registroMensaje');
+    formRegistro.addEventListener('submit', async event => {
+      event.preventDefault();
+      mensajeRegistro.textContent = '';
+      const datos = Object.fromEntries(new FormData(formRegistro));
+      if (datos.password !== document.getElementById('confirmar_password').value) {
+        mensajeRegistro.textContent = 'Las contraseñas no coinciden.';
+        return;
+      }
+      const boton = formRegistro.querySelector('button[type="submit"]');
+      boton.disabled = true;
+      try {
+        const respuesta = await fetch('/api/registro', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(datos)
+        });
+        const resultado = await respuesta.json();
+        if (!respuesta.ok) throw new Error(resultado.message || 'No se pudo crear la cuenta.');
+        mensajeRegistro.textContent = resultado.message;
+        window.location.href = 'index.html';
+      } catch (error) {
+        mensajeRegistro.textContent = error.message === 'Failed to fetch'
+          ? 'No se pudo contactar al servidor. Confirma que node server.js siga ejecutándose.'
+          : error.message;
+      } finally {
+        boton.disabled = false;
+      }
+    });
+  </script>
+  <footer>
+    <div class="footer-content">
+      <p>Mexico Runs · Renta de vehículos con sucursales en Tuxtla Gutiérrez, Ciudad de México y Cancún.</p>
+    </div>
+  </footer>
+<script src="session-nav.js"></script></body>
+</html>
+
+

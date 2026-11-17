@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detalle del Vehículo - Mexico Runs</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+    }
+    .car-detail-card {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 30px;
+    }
+    .car-image-box {
+      background-color: #f0f4f8;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .car-image-box img {
+      width: 100%;
+      height: 250px;
+      object-fit: cover;
+      border-radius: 6px;
+    }
+    .car-title-group {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .car-title-group h1 {
+      font-size: 1.8rem;
+      color: var(--primary-color);
+    }
+    .specs-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    .specs-table tr {
+      border-bottom: 1px solid var(--border-color);
+    }
+    .specs-table td {
+      padding: 12px 0;
+      font-size: 0.9rem;
+    }
+    .specs-table td:first-child {
+      color: var(--text-muted);
+    }
+    .specs-table td:last-child {
+      text-align: right;
+      font-weight: 600;
+    }
+    .reservation-card {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 30px;
+    }
+    .calc-box {
+      background-color: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      border-radius: 6px;
+      padding: 15px;
+      text-align: center;
+      font-size: 0.95rem;
+      color: var(--primary-color);
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav class="navbar">
+      <a href="index.html" class="brand"><span class="brand-badge">MR</span> Mexico Runs</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Inicio</a></li>
+        <li><a href="catalago.html" class="active">Catálogo</a></li>
+        <li><a href="reservaciones.html">Reservaciones</a></li>
+        <li><a href="nosotros.html">Nosotros</a></li>
+        <li><a href="contacto.html">Contacto</a></li>
+        <li hidden><a href="basededatos.html">Base de datos</a></li>
+      </ul>
+      <div class="auth-buttons">
+        <a href="login.html" class="btn-link">Iniciar sesión</a>
+        <a href="registro.html" class="btn-primary">Crear cuenta</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <div class="detail-grid">
+      <div class="car-detail-card">
+        <div class="car-image-box">
+          <img id="detail-img" src="" alt="Vehículo">
+        </div>
+
+        <div class="car-title-group">
+          <h1 id="detail-title">Cargando...</h1>
+          <span class="year" id="detail-year">2024</span>
+        </div>
+        <span class="status-indicator" style="font-size: 0.85rem;">Disponible</span>
+
+        <table class="specs-table">
+          <tr><td>Categoría</td><td id="detail-category">-</td></tr>
+          <tr><td>Color</td><td id="detail-color">-</td></tr>
+          <tr><td>Pasajeros</td><td id="detail-passengers">-</td></tr>
+          <tr><td>Kilometraje</td><td id="detail-km">-</td></tr>
+          <tr><td>Placas</td><td id="detail-plates">-</td></tr>
+          <tr><td>Se recoge en</td><td>MexicoRuns Tuxtla Centro</td></tr>
+          <tr><td>Tarifa por día</td><td id="detail-price" style="color: var(--accent-red);">$0.00 / día</td></tr>
+        </table>
+      </div>
+
+      <div class="reservation-card">
+        <h2 style="color: var(--primary-color); margin-bottom: 20px;">Datos de tu reservación</h2>
+        <form action="reservaciones.html" method="GET">
+          <div class="form-group">
+            <label>Recoger en</label>
+            <input type="text" value="MexicoRuns Tuxtla Centro" readonly style="background: #f1f5f9;">
+          </div>
+          <div class="form-group">
+            <label>Entregar en</label>
+            <select>
+              <option>MexicoRuns Tuxtla Centro</option>
+              <option>MexicoRuns Aeropuerto CDMX</option>
+              <option>MexicoRuns Cancún Centro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Fecha y hora de recogida</label>
+            <input type="datetime-local" value="2026-11-04T10:00">
+          </div>
+          <div class="form-group">
+            <label>Fecha y hora de entrega</label>
+            <input type="datetime-local" value="2026-11-07T10:00">
+          </div>
+          <div class="calc-box" id="detail-calc">
+            3 días × Tarifas = Total estimado
+          </div>
+          <button type="submit" class="btn-primary" style="width: 100%; padding: 12px;">Reservar y continuar al pago</button>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <p>Mexico Runs · Renta de vehículos con sucursales en Tuxtla Gutiérrez, Ciudad de México y Cancún.</p>
+    </div>
+  </footer>
+
+  <script>
+    const carsData = {
+      sail: { title: "Chevrolet Sail", year: "2023", category: "Sedán", color: "Azul", passengers: 5, km: "22,000 km", plates: "DSB-102", price: 880, img: "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80" },
+      creta: { title: "Hyundai Creta", year: "2024", category: "SUV", color: "Blanco", passengers: 5, km: "18,000 km", plates: "PLC-004", price: 980, img: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=600&q=80" },
+      sportage: { title: "Kia Sportage", year: "2024", category: "SUV", color: "Negro", passengers: 5, km: "12,500 km", plates: "KSP-991", price: 1100, img: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=600&q=80" },
+      versa: { title: "Nissan Versa", year: "2022", category: "Sedán", color: "Azul", passengers: 5, km: "35,000 km", plates: "VER-440", price: 720, img: "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=600&q=80" },
+      hilux: { title: "Toyota Hilux 4x4", year: "2023", category: "Pick-up 4x4", color: "Negro", passengers: 5, km: "28,000 km", plates: "HLX-707", price: 1250, img: "https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=600&q=80" },
+      vento: { title: "Volkswagen Vento", year: "2023", category: "Sedán", color: "Rojo", passengers: 5, km: "19,800 km", plates: "VNT-210", price: 800, img: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80" },
+      wrangler: { title: "Jeep Wrangler 4x4", year: "2024", category: "Camioneta 4x4", color: "Gris", passengers: 4, km: "9,000 km", plates: "JEP-4x4", price: 1600, img: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=600&q=80" },
+      expedition: { title: "Ford Expedition 4x4", year: "2024", category: "SUV 4x4", color: "Negro", passengers: 7, km: "11,000 km", plates: "EXP-880", price: 2100, img: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=600&q=80" }
+    };
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const carKey = urlParams.get('car') || 'creta';
+    const selectedCar = carsData[carKey] || carsData['creta'];
+
+    document.getElementById('detail-title').innerText = selectedCar.title;
+    document.getElementById('detail-year').innerText = selectedCar.year;
+    document.getElementById('detail-category').innerText = selectedCar.category;
+    document.getElementById('detail-color').innerText = selectedCar.color;
+    document.getElementById('detail-passengers').innerText = selectedCar.passengers;
+    document.getElementById('detail-km').innerText = selectedCar.km;
+    document.getElementById('detail-plates').innerText = selectedCar.plates;
+    document.getElementById('detail-price').innerText = '$' + selectedCar.price + '.00 / día';
+    document.getElementById('detail-img').src = selectedCar.img;
+    document.getElementById('detail-calc').innerHTML = '3 días × $' + selectedCar.price + ' MXN = <strong>$' + (selectedCar.price * 3).toLocaleString() + ' MXN</strong>';
+  </script>
+<script src="session-nav.js"></script></body>
+</html>

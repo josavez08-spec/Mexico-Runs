@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contacto - Mexico Runs</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <nav class="navbar">
+      <a href="index.html" class="brand"><span class="brand-badge">MR</span> Mexico Runs</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Inicio</a></li>
+        <li><a href="catalago.html">Catálogo</a></li>
+        <li><a href="reservaciones.html">Reservaciones</a></li>
+        <li><a href="nosotros.html">Nosotros</a></li>
+        <li><a href="contacto.html" class="active">Contacto</a></li>
+        <li hidden><a href="basededatos.html">Base de datos</a></li>
+      </ul>
+      <div class="auth-buttons">
+        <a href="login.html" class="btn-link">Iniciar sesión</a>
+        <a href="registro.html" class="btn-primary">Crear cuenta</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <div class="card-form">
+      <h1 style="font-size: 1.6rem; color: var(--primary-color); margin-bottom: 5px;">Contacto</h1>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">Escríbenos si tienes alguna duda sobre las sucursales o la renta.</p>
+
+      <form action="index.html" method="GET">
+        <div class="form-group">
+          <label>Nombre completo</label>
+          <input type="text" required>
+        </div>
+        <div class="form-group">
+          <label>Correo electrónico</label>
+          <input type="email" required>
+        </div>
+        <div class="form-group">
+          <label>Mensaje</label>
+          <textarea rows="4" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;" required></textarea>
+        </div>
+        <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px; padding: 10px;">Enviar mensaje</button>
+      </form>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <p>Mexico Runs · Renta de vehículos con sucursales en Tuxtla Gutiérrez, Ciudad de México y Cancún.</p>
+    </div>
+  </footer>
+<script src="session-nav.js"></script></body>
+</html>

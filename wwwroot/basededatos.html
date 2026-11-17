@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Base de datos - Mexico Runs</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <nav class="navbar">
+      <a href="index.html" class="brand"><span class="brand-badge">MR</span> Mexico Runs</a>
+      <ul class="nav-links">
+        <li><a href="index.html">Inicio</a></li>
+        <li><a href="catalago.html">Catálogo</a></li>
+        <li><a href="reservaciones.html">Reservaciones</a></li>
+        <li><a href="nosotros.html">Nosotros</a></li>
+        <li><a href="contacto.html">Contacto</a></li>
+        <li hidden><a href="basededatos.html" class="active">Base de datos</a></li>
+      </ul>
+      <div class="auth-buttons">
+        <span id="dbUser" hidden></span>
+        <a id="dbAdmin" href="admin.html" class="btn-link" hidden>Administración</a>
+        <a id="dbStaff" href="operacion.html" class="btn-link" hidden>Operación</a>
+        <a id="dbLogin" href="login.html" class="btn-link">Iniciar sesión</a>
+        <a id="dbRegister" href="registro.html" class="btn-primary">Crear cuenta</a>
+        <button id="dbLogout" class="btn-link" type="button" hidden>Cerrar sesión</button>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="card" style="max-width:800px;margin:0 auto">
+      <h1 class="card-title">Base de datos MexicoRuns2</h1>
+      <p class="card-subtitle">La aplicación usa SQL Server para guardar cuentas, roles, vehículos y reservaciones. Las contraseñas nuevas se almacenan como hash.</p>
+      <p id="dbEstado" role="status" style="margin:18px 0">Comprobando conexión…</p>
+      <a class="btn-primary" href="catalago.html">Ver catálogo desde la base</a>
+      <a id="adminAccess" class="btn-primary" href="login.html">Acceso de administrador</a>
+      <p id="adminHelp" style="margin-top:18px;color:var(--text-muted)">La administración está protegida: se necesita iniciar sesión con un usuario que tenga el rol Administrador.</p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <p>Mexico Runs · Renta de vehículos con sucursales en Tuxtla Gutiérrez, Ciudad de México y Cancún.</p>
+    </div>
+  </footer>
+  <script>
+    const byId=id=>document.getElementById(id);
+    fetch('/api/health').then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.message||'SQL Server no está disponible.');byId('dbEstado').textContent='Conexión activa con el servidor y SQL Server.';}).catch(()=>{byId('dbEstado').textContent='No se pudo comprobar la conexión con SQL Server.'});
+    fetch('/api/sesion',{credentials:'include'}).then(r=>r.json()).then(({user})=>{
+      if(!user)return;
+      byId('dbLogin').hidden=true;byId('dbRegister').hidden=true;byId('dbUser').hidden=false;byId('dbUser').textContent='Hola, '+user.nombre;byId('dbLogout').hidden=false;
+      if(user.rol==='Administrador'){byId('dbAdmin').hidden=false;byId('adminAccess').href='admin.html';byId('adminAccess').textContent='Abrir panel de administración';byId('adminHelp').textContent='Tu sesión de administrador está activa. Desde el panel puedes gestionar vehículos, personal, reservas y estadísticas.'}
+      else if(user.rol==='Empleado'){byId('dbStaff').hidden=false;byId('adminAccess').hidden=true;byId('adminHelp').textContent='Esta cuenta tiene acceso de empleado, no de administrador.'}
+      else {byId('adminAccess').hidden=true;byId('adminHelp').textContent='La administración está protegida y solo está disponible para cuentas con rol Administrador.'}
+    }).catch(()=>{});
+    byId('dbLogout').onclick=async()=>{await fetch('/api/logout',{method:'POST',credentials:'include'});location.reload()};
+  </script>
+<script src="session-nav.js"></script></body>
+</html>

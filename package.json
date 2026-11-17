@@ -1,0 +1,9 @@
+{
+  "name": "mexicoruns-net8",
+  "version": "2.0.0",
+  "description": "Mexico Runs con ASP.NET Core .NET 8 y SQL Server",
+  "private": true,
+  "scripts": {
+    "start": "dotnet run --project MexicoRuns.csproj --no-launch-profile"
+  }
+}
